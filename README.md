@@ -37,21 +37,29 @@ VPS Ubuntu (RTX 3090 24GB)
 - **Disk**: ≥ 50GB free (models ~25GB)
 - **Software**: NVIDIA driver (cu124), git, python3, pip
 
-## ⚡ Cài đặt nhanh (1 lệnh)
+## ⚡ Cách dùng nhanh (CHỈ 1 LỆNH DUY NHẤT)
 
 ```bash
-# Clone repo
+# Trên VPS Ubuntu của bạn:
 git clone https://github.com/huydv-ship-it/ComfyUI_IPAdatapter.git
 cd ComfyUI_IPAdatapter
 
-# Chạy setup (tự động làm mọi thứ)
-chmod +x setup.sh
-./setup.sh
-
-# Sau đó cấu hình token ngrok
-# Lấy token tại: https://dashboard.ngrok.com/get-started/your-authtoken
-nano config/settings.env
+# CHẠY 1 LỆNH NÀY:
+bash run.sh
 ```
+
+Script `run.sh` sẽ tự động:
+1. Kiểm tra GPU, cài git/python nếu thiếu
+2. Clone ComfyUI, tạo venv, cài PyTorch
+3. Cài IPAdapter-Plus và các custom nodes
+4. Download toàn bộ models (FLUX, CLIP, T5, VAE, IPAdapter) ~25GB
+5. Cài đặt ngrok tunnel
+6. **Hỏi bạn nhập Ngrok Token** (lấy từ https://dashboard.ngrok.com)
+7. **Chờ bạn đặt 20 ảnh style** vào thư mục `input/styles/`
+8. Start ComfyUI + ngrok, in ra URL để mở browser
+9. **Hỏi có muốn gen 200 ảnh ngay không** (gõ `y` để chạy)
+
+> ✅ **Xong!** Mở URL trên máy tính, bạn có ComfyUI web + 200 ảnh gen sẵn.
 
 ## 🔧 Cài đặt thủ công (từng bước)
 

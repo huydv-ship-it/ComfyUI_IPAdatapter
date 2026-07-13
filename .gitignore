@@ -34,3 +34,9 @@ Thumbs.db
 
 # Environment config (contains tokens)
 /config/settings.env
+
+# Setup marker
+.setup_done
+
+.vscode/
+.history/
