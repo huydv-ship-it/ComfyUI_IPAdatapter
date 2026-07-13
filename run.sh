@@ -55,9 +55,22 @@ setup_phase() {
     # Kiểm tra python
     if ! command -v python3 &>/dev/null; then
         info "Cài đặt python3..."
-        sudo apt-get update -qq && sudo apt-get install -y -qq python3 python3-venv python3-pip
+        sudo apt-get update -qq && sudo apt-get install -y -qq python3
     fi
     log "Python: $(python3 --version)"
+
+    # Kiểm tra python3-venv
+    if ! python3 -c "import venv" 2>/dev/null; then
+        info "Cài đặt python3-venv python3-pip..."
+        sudo apt-get update -qq && sudo apt-get install -y -qq python3-venv python3-pip
+    fi
+
+    # Kiểm tra đang chạy bằng root không
+    if [ "$EUID" = "0" ] 2>/dev/null || [ "$(id -u)" = "0" ] 2>/dev/null; then
+        warn "⚠️  BẠN ĐANG CHẠY BẰNG ROOT! Nên dùng user thường."
+        warn "   Tạo user mới: sudo adduser ubuntu && sudo usermod -aG sudo ubuntu && su - ubuntu"
+        warn "   Hoặc: export COMFYUI_NONROOT=1 (bỏ qua cảnh báo)"
+    fi
 
     # Đã setup chưa?
     if [ -f "$REPO_DIR/.setup_done" ]; then
@@ -68,7 +81,7 @@ setup_phase() {
     sep
     echo "🔧 PHASE 1a: Cài đặt system dependencies..."
     sudo apt-get update -qq
-    sudo apt-get install -y -qq wget curl unzip p7zip-full
+    sudo apt-get install -y -qq wget curl unzip
 
     sep
     echo "🔧 PHASE 1b: Cài đặt ComfyUI..."

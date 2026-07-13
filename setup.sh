@@ -27,7 +27,7 @@ fi
 # Cài đặt dependencies hệ thống
 echo "[2/6] Cài đặt system dependencies..."
 sudo apt-get update -qq
-sudo apt-get install -y -qq git python3 python3-venv python3-pip wget curl unzip p7zip-full
+sudo apt-get install -y -qq git python3 python3-venv python3-pip wget curl unzip
 
 # Cài đặt ComfyUI
 echo "[3/6] Cài đặt ComfyUI..."

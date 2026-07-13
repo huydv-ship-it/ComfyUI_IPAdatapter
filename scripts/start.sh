@@ -31,10 +31,17 @@ pkill -f "ComfyUI/main.py" 2>/dev/null || true
 pkill -f "ngrok.*$COMFYUI_PORT" 2>/dev/null || true
 sleep 1
 
+# Kiểm tra venv
+if [ ! -f "$VENV_DIR/bin/python" ]; then
+    echo "  → Venv chưa tồn tại, tạo mới..."
+    bash "$REPO_DIR/scripts/install_comfyui.sh"
+fi
+
 # Auth ngrok nếu có token
-if [ -n "$NGROK_TOKEN" ]; then
+NGROK_CMD=$(command -v ngrok 2>/dev/null || echo "$NGROK")
+if [ -n "$NGROK_TOKEN" ] && [ -f "$NGROK_CMD" ]; then
     echo "  → Cấu hình ngrok token..."
-    "$NGROK" config add-authtoken "$NGROK_TOKEN" 2>/dev/null || true
+    "$NGROK_CMD" config add-authtoken "$NGROK_TOKEN" 2>/dev/null || true
 fi
 
 # Start ComfyUI
