@@ -164,11 +164,11 @@ download_file \
     "$CLIP_DIR" \
     "clip_l.safetensors"
 
-# 3. T5-XXL fp8
+# 3. T5-XXL fp16 (bản fp8 không còn tồn tại, dùng fp16 từ flux_text_encoders)
 download_file \
-    "https://huggingface.co/Kijai/flux-fp8/resolve/main/t5xxl_fp8_e4m3fn.safetensors" \
+    "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp16.safetensors" \
     "$CLIP_DIR" \
-    "t5xxl_fp8.safetensors"
+    "t5xxl_fp16.safetensors"
 
 # 4. VAE (ae.safetensors)
 download_file \
