@@ -1,3 +1,6 @@
+# Nested clones (accidental)
+ComfyUI_IPAdatapter/
+
 # ComfyUI (có thể clone riêng, không check-in)
 /ComfyUI/
 
