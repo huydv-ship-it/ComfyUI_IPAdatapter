@@ -11,25 +11,18 @@ mkdir -p "$COMFYUI_DIR/models/vae"
 mkdir -p "$COMFYUI_DIR/models/ipadapter"
 mkdir -p "$COMFYUI_DIR/models/controlnet"
 
-# Chọn công cụ download ưu tiên: huggingface-cli > curl > wget > python
+# Ưu tiên trên Colab: python (urllib có sẵn) > curl > wget > huggingface-cli
+# Trên Colab: wget hay bị treo với redirect HuggingFace Xet bridge
+# Python urllib.request có sẵn, không cần pip install
 DOWNLOADER=""
-if command -v huggingface-cli &>/dev/null; then
-    DOWNLOADER="hf"
+if command -v python3 &>/dev/null; then
+    DOWNLOADER="py"
 elif command -v curl &>/dev/null; then
     DOWNLOADER="curl"
 elif command -v wget &>/dev/null; then
     DOWNLOADER="wget"
-elif command -v python3 &>/dev/null; then
-    # Kiểm tra requests có sẵn không
-    if python3 -c "import requests" 2>/dev/null; then
-        DOWNLOADER="py"
-    else
-        echo "  → Cài requests cho Python fallback..."
-        pip install requests -q 2>/dev/null || python3 -m pip install requests -q 2>/dev/null || true
-        if python3 -c "import requests" 2>/dev/null; then
-            DOWNLOADER="py"
-        fi
-    fi
+elif command -v huggingface-cli &>/dev/null; then
+    DOWNLOADER="hf"
 fi
 
 download_file() {
@@ -48,42 +41,78 @@ download_file() {
     echo "  → Downloading $filename..."
     
     case "$DOWNLOADER" in
+        py)
+            # Python urllib.request - có sẵn trên mọi hệ thống, không cần pip
+            python3 -u -c "
+import sys, os, time
+
+# Thử requests trước (nhanh hơn, có progress bar đẹp)
+try:
+    import requests
+    url = '$url'
+    out = '$output_dir/$filename'
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    resp = requests.get(url, stream=True, timeout=600, allow_redirects=True)
+    resp.raise_for_status()
+    total = int(resp.headers.get('content-length', 0))
+    downloaded = 0
+    start_t = time.time()
+    with open(out + '.part', 'wb') as f:
+        for chunk in resp.iter_content(chunk_size=65536):
+            if chunk:
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total:
+                    elapsed = time.time() - start_t
+                    speed = downloaded / elapsed / 1048576 if elapsed > 0 else 0
+                    pct = downloaded * 100 // total
+                    eta = (total - downloaded) / (downloaded / elapsed) if downloaded > 0 else 0
+                    sys.stderr.write(f'\r  {pct}% ({downloaded//1048576}MB/{total//1048576}MB) {speed:.0f}MB/s eta {eta:.0f}s')
+    os.rename(out + '.part', out)
+    sys.stderr.write('\n')
+    print('OK')
+except ImportError:
+    # Fallback: urllib.request
+    import urllib.request
+    url = '$url'
+    out = '$output_dir/$filename'
+    os.makedirs(os.path.dirname(out), exist_ok=True)
+    
+    def reporthook(block, blocksize, totalsize):
+        downloaded = block * blocksize
+        if totalsize > 0:
+            pct = downloaded * 100 // max(totalsize, 1)
+            sys.stderr.write(f'\r  {pct}% ({downloaded//1048576}MB/{totalsize//1048576}MB)')
+    
+    urllib.request.urlretrieve(url, out + '.part', reporthook)
+    os.rename(out + '.part', out)
+    sys.stderr.write('\n')
+    print('OK')
+" 2>&1
+            # Kiểm tra kết quả
+            if [ ! -f "$output_dir/$filename" ]; then
+                echo "  Python download thất bại, thử curl..."
+                DOWNLOADER="curl"
+                download_file "$url" "$output_dir" "$filename"
+                return $?
+            fi
+            ;;
+        curl)
+            curl -L -C - --retry 3 --retry-delay 5 --connect-timeout 30 --max-time 3600 -o "$output_dir/$filename" "$url" 2>&1
+            ;;
+        wget)
+            # --show-progress có thể lỗi trên Colab, dùng -q -O trước
+            wget -q -O "$output_dir/$filename" "$url" 2>&1 || \
+                wget -q -O "$output_dir/$filename" "$url" --no-check-certificate 2>&1
+            ;;
         hf)
-            # huggingface-cli: parse repo_id và filename từ URL
             local repo_file=$(echo "$url" | sed 's|https://huggingface.co/||' | sed 's|/resolve/main/| |')
             local repo_id=$(echo "$repo_file" | awk '{print $1}')
             local file_path=$(echo "$repo_file" | awk '{print $2}')
             huggingface-cli download "$repo_id" "$file_path" --local-dir "$output_dir" --local-dir-use-symlinks False --resume-download 2>&1 | tail -1
             ;;
-        curl)
-            curl -L -C - --retry 3 --retry-delay 5 -o "$output_dir/$filename" "$url" 2>&1
-            ;;
-        wget)
-            wget -q --show-progress -O "$output_dir/$filename" "$url" 2>&1 || \
-                wget -q -O "$output_dir/$filename" "$url" 2>&1
-            ;;
-        py)
-            python3 -c "
-import requests, sys, os
-url = '$url'
-out = '$output_dir/$filename'
-os.makedirs(os.path.dirname(out), exist_ok=True)
-resp = requests.get(url, stream=True, timeout=300)
-resp.raise_for_status()
-total = int(resp.headers.get('content-length', 0))
-downloaded = 0
-with open(out, 'wb') as f:
-    for chunk in resp.iter_content(chunk_size=8192):
-        f.write(chunk)
-        downloaded += len(chunk)
-        if total:
-            pct = downloaded * 100 // total
-            sys.stderr.write(f'\r  {pct}% ({downloaded//1048576}MB/{total//1048576}MB)')
-sys.stderr.write('\n')
-" 2>&1
-            ;;
         *)
-            echo "  LỖI: Không tìm thấy curl, wget hay python3 để download!"
+            echo "  LỖI: Không tìm thấy Python, curl, wget hay huggingface-cli!"
             return 1
             ;;
     esac
