@@ -104,22 +104,36 @@ echo "  Download FLUX.1-schnell + IPAdapter models"
 echo "=================================================="
 echo ""
 
-# 1. FLUX.1-schnell UNET (fp8)
+# Danh sách models cần tải (hỗ trợ cả ComfyUI cũ và mới)
+# Model paths auto-detect: diffusion_models (mới) hoặc unet (cũ)
+if [ -d "$COMFYUI_DIR/models/diffusion_models" ]; then
+    UNET_DIR="$COMFYUI_DIR/models/diffusion_models"
+else
+    UNET_DIR="$COMFYUI_DIR/models/unet"
+fi
+if [ -d "$COMFYUI_DIR/models/text_encoders" ]; then
+    CLIP_DIR="$COMFYUI_DIR/models/text_encoders"
+else
+    CLIP_DIR="$COMFYUI_DIR/models/clip"
+fi
+mkdir -p "$UNET_DIR" "$CLIP_DIR"
+
+# 1. FLUX.1-schnell UNET (fp8) - dùng source từ Comfy-Org (tin cậy hơn)
 download_file \
-    "https://huggingface.co/Kijai/flux-fp8/resolve/main/flux1-schnell-fp8.safetensors" \
-    "$COMFYUI_DIR/models/unet" \
+    "https://huggingface.co/Comfy-Org/flux1-schnell/resolve/main/flux1-schnell-fp8.safetensors" \
+    "$UNET_DIR" \
     "flux1-schnell-fp8.safetensors"
 
 # 2. CLIP-L
 download_file \
     "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/clip_l.safetensors" \
-    "$COMFYUI_DIR/models/clip" \
+    "$CLIP_DIR" \
     "clip_l.safetensors"
 
 # 3. T5-XXL fp8
 download_file \
-    "https://huggingface.co/comfyanonymous/flux_text_encoders/resolve/main/t5xxl_fp8.safetensors" \
-    "$COMFYUI_DIR/models/clip" \
+    "https://huggingface.co/Kijai/flux-fp8/resolve/main/t5xxl_fp8_e4m3fn.safetensors" \
+    "$CLIP_DIR" \
     "t5xxl_fp8.safetensors"
 
 # 4. VAE (ae.safetensors)
@@ -128,7 +142,15 @@ download_file \
     "$COMFYUI_DIR/models/vae" \
     "ae.safetensors"
 
-# 5. IPAdapter FLUX fp8
+# 5. CLIP Vision (SigLIP cho IPAdapter) - cần cho IPAdapter hoạt động
+mkdir -p "$COMFYUI_DIR/models/clip_vision"
+download_file \
+    "https://huggingface.co/Comfy-Org/sigclip_vision_384/resolve/main/sigclip_vision_patch14_384.safetensors" \
+    "$COMFYUI_DIR/models/clip_vision" \
+    "sigclip_vision_patch14_384.safetensors"
+
+# 6. IPAdapter FLUX - thử nhiều source
+mkdir -p "$COMFYUI_DIR/models/ipadapter"
 download_file \
     "https://huggingface.co/h94/IP-Adapter-Flux/resolve/main/ip-adapter-flux-fp8.safetensors" \
     "$COMFYUI_DIR/models/ipadapter" \
