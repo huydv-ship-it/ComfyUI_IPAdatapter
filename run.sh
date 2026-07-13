@@ -10,6 +10,23 @@ set -euo pipefail
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_DIR"
 
+# Kiểm tra lồng thư mục (child clone bên trong chính nó)
+PARENT_NAME=$(basename "$(dirname "$REPO_DIR")" 2>/dev/null || echo "")
+CURRENT_NAME=$(basename "$REPO_DIR")
+if [ -n "$PARENT_NAME" ] && [ "$PARENT_NAME" = "$CURRENT_NAME" ]; then
+    echo ""
+    echo "╔══════════════════════════════════════════════════╗"
+    echo "║  ❌ LỖI: REPO BỊ CLONE LỒNG NHAU               ║"
+    echo "║                                               ║"
+    echo "║  Path hiện tại: $REPO_DIR  ║"
+    echo "║                                               ║"
+    echo "║  Fix: rm -rf $(dirname "$REPO_DIR")           ║"
+    echo "║        cd ~ && git clone <url> && cd <repo>   ║"
+    echo "║        bash run.sh                            ║"
+    echo "╚══════════════════════════════════════════════════╝"
+    exit 1
+fi
+
 # Màu sắc
 RED='\033[0;31m'
 GREEN='\033[0;32m'
