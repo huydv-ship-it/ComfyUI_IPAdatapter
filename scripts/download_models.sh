@@ -42,53 +42,58 @@ download_file() {
     
     case "$DOWNLOADER" in
         py)
-            # Python urllib.request - có sẵn trên mọi hệ thống, không cần pip
-            python3 -u -c "
-import sys, os, time
+            # Python download - dùng env vars để tránh shell injection từ URL
+            export PY_URL="$url"
+            export PY_OUT="$output_dir/$filename"
+            python3 -u << 'PYEOF' 2>&1
+import os, sys, time
 
-# Thử requests trước (nhanh hơn, có progress bar đẹp)
+url = os.environ['PY_URL']
+out = os.environ['PY_OUT']
+os.makedirs(os.path.dirname(out), exist_ok=True)
+
+# Download to .part first, rename when done
+part = out + '.part'
+
+# Try requests first (faster, better progress)
 try:
     import requests
-    url = '$url'
-    out = '$output_dir/$filename'
-    os.makedirs(os.path.dirname(out), exist_ok=True)
     resp = requests.get(url, stream=True, timeout=600, allow_redirects=True)
     resp.raise_for_status()
     total = int(resp.headers.get('content-length', 0))
     downloaded = 0
     start_t = time.time()
-    with open(out + '.part', 'wb') as f:
+    with open(part, 'wb') as f:
         for chunk in resp.iter_content(chunk_size=65536):
             if chunk:
                 f.write(chunk)
                 downloaded += len(chunk)
                 if total:
-                    elapsed = time.time() - start_t
-                    speed = downloaded / elapsed / 1048576 if elapsed > 0 else 0
-                    pct = downloaded * 100 // total
+                    elapsed = max(time.time() - start_t, 0.001)
+                    speed = downloaded / elapsed / 1048576
+                    pct = min(downloaded * 100 // total, 100)
                     eta = (total - downloaded) / (downloaded / elapsed) if downloaded > 0 else 0
                     sys.stderr.write(f'\r  {pct}% ({downloaded//1048576}MB/{total//1048576}MB) {speed:.0f}MB/s eta {eta:.0f}s')
-    os.rename(out + '.part', out)
+    os.rename(part, out)
     sys.stderr.write('\n')
     print('OK')
-except ImportError:
-    # Fallback: urllib.request
-    import urllib.request
-    url = '$url'
-    out = '$output_dir/$filename'
-    os.makedirs(os.path.dirname(out), exist_ok=True)
-    
-    def reporthook(block, blocksize, totalsize):
-        downloaded = block * blocksize
-        if totalsize > 0:
-            pct = downloaded * 100 // max(totalsize, 1)
-            sys.stderr.write(f'\r  {pct}% ({downloaded//1048576}MB/{totalsize//1048576}MB)')
-    
-    urllib.request.urlretrieve(url, out + '.part', reporthook)
-    os.rename(out + '.part', out)
-    sys.stderr.write('\n')
-    print('OK')
-" 2>&1
+except Exception:
+    # Fallback: urllib.request (built-in, no pip needed)
+    try:
+        import urllib.request
+        def reporthook(block, blocksize, totalsize):
+            d = block * blocksize
+            if totalsize > 0:
+                pct = min(d * 100 // totalsize, 100)
+                sys.stderr.write(f'\r  {pct}% ({d//1048576}MB/{totalsize//1048576}MB)')
+        urllib.request.urlretrieve(url, part, reporthook)
+        os.rename(part, out)
+        sys.stderr.write('\n')
+        print('OK')
+    except Exception as e:
+        print(f'FAILED: {e}')
+        sys.exit(1)
+PYEOF
             # Kiểm tra kết quả
             if [ ! -f "$output_dir/$filename" ]; then
                 echo "  Python download thất bại, thử curl..."
